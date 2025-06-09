@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+		@import url('https://fonts.googleapis.com/css?family=Exo:400,700');
+
+		body { background-color: #555; color: #fff; margin: 0; padding-bottom: 3rem; font-family: 'Exo', sans-serif; }
+		a { color: #FFF; border: #000 1px solid; border-radius: 25%; background: rgba(0, 0, 0, 0.15); padding: 0.25rem; box-sizing: border-box; backdrop-filter: blur(10px); transition: 0.5s }
+		a:hover { background: rgb(0 0 0 / 50%); }
+		a, label, button { cursor: pointer; }
+		
+		.background { position: fixed; width: 100%; height: 100vh; overflow: hidden; z-index: -1; }
+		.background li{ position: absolute; display: block; list-style: none; width: 20px; height: 20px; background: rgba(255, 255, 255, 0.2); animation: animate 25s linear infinite; bottom: -150px; }
+		.background li:nth-child(1){ left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+		.background li:nth-child(2){ left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+		.background li:nth-child(3){ left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+		.background li:nth-child(4){ left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; }
+		.background li:nth-child(5){ left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+		.background li:nth-child(6){ left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+		.background li:nth-child(7){ left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+		.background li:nth-child(8){ left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+		.background li:nth-child(9){ left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; }
+		.background li:nth-child(10){ left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 22s; }
+		@keyframes animate {
+			0%{
+				transform: translateY(0) rotate(0deg);
+				border-radius: 0;
+			}
+
+			100%{
+				transform: translateY(-125vh) rotate(720deg);
+				border-radius: 50%;
+			}
+		}
+		
+		@keyframes currUpload-slide {
+			from {
+				background-position-x: 0;
+			}
+			to {
+				background-position-x: 30px;
+			}
+		}
+		
+		.main #form { position: fixed; bottom: 0; left: 0; right: 0; }
+		#form .form-line { display: flex; justify-content: center; }
+		#form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; box-sizing: border-box; backdrop-filter: blur(10px); display: grid; font-size: 2.5vw; }
+		#query { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 1.25rem; font-size: 35px; transition: 0.5s }
+		#query:focus { outline: none; }
+		#query:disabled { background-color: #bbb; }
+		.gui button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; font-size: 35px; }
+		
+		.pincode { position: absolute; display: none; text-align: center; font-size: 40px; padding-top: 40px; }
+		.pincode .fields { width: 90%; margin: auto; }
+		.pincode > .fields > .grid { display: inline-flex; }
+		.pincode > .fields > .grid > .grid__col span { height: 60px; width: 60px; margin: 30px 30px; border: 2px solid #fff; background-color: transparent; border-radius: 100%; position: relative; display: inline-block; text-align: center; transition: 0.25s }
+		.pincode > .fields > .grid > .grid__col.active span { background-color: #fff; }
+		.pincode > .numbers > .grid > .grid__col { width: 33%; display: inline-block; }
+		.pincode button { width: 150px; height: 150px; margin-bottom: 30px; background-color: rgba(0, 0, 0, 0.35); border: 0; color: #fff; font-size: 50px; line-height: 50px; border-radius: 100%; opacity: 1; outline: 0; border: 2px solid #272a2f; }
+		.pincode button:active { background-color: rgba(0, 0, 0, 0.6); outline: 0; }
+		.pincode .miss { -webkit-animation: miss .8s ease-out 1; animation: miss .8s ease-out 1; }
+		@keyframes miss {
+			0% {
+				-webkit-transform: translate(0, 0);
+				transform: translate(0, 0);
+			}
+			10% {
+				-webkit-transform: translate(-25px, 0);
+				transform: translate(-25px, 0);
+			}
+			20% {
+				-webkit-transform: translate(25px, 0);
+				transform: translate(25px, 0);
+			}
+			30% {
+				-webkit-transform: translate(-20px, 0);
+				transform: translate(-20px, 0);
+			}
+			40% {
+				-webkit-transform: translate(20px, 0);
+				transform: translate(20px, 0);
+			}
+			50% {
+				-webkit-transform: translate(-10px, 0);
+				transform: translate(-10px, 0);
+			}
+			60% {
+				-webkit-transform: translate(10px, 0);
+				transform: translate(10px, 0);
+			}
+			70% {
+				-webkit-transform: translate(-5px, 0);
+				transform: translate(-5px, 0);
+			}
+			80% {
+				-webkit-transform: translate(5px, 0);
+				transform: translate(5px, 0);
+			}
+			100% {
+				-webkit-transform: translate(0, 0);
+				transform: translate(0, 0);
+			}
+		}
+		
+		.alerts { position: absolute; height: 100vh; width: 100%; pointer-events: none; z-index: 99; }
+		.alert-container { display: none; }
+		.alert { min-height: 70px; width: 97%; border-radius: 30px; padding: 20px 0px 17px; margin: 10px; display: flex; font-size: 35px; align-items: center; pointer-events: all; }
+		.alert-warning { background: #f2a600; }
+		.alert-success { background: #12c99b; }
+		.alert-primary { background: #0676ed; }
+		.alert-dark { background: #151a30; }
+		.alert-error { background: #e41749; }
+		.alert p { color: #fff; font-family: Verdana; width: 90% }
+		.alert p a, .alert p a:visited, .alert p a:active { color: #fff; }
+		.alert span { margin: auto; }
+		.alert .close { color: #fff; transition: transform 0.5s; cursor: pointer; }
+		.alert .close:hover { transform: scale(1.3); }
+		
+		.gui img { border-radius: 100%; box-shadow: rgba(0, 0, 0, 0.25) 0px 5px 10px, rgba(0, 0, 0, 0.12) 0px 10px 30px, rgba(0, 0, 0, 0.12) 0px 6px 15px, rgba(0, 0, 0, 0.17) 0px -2px 15px, rgba(0, 0, 0, 0.09) 0px 5px 5px; }
+		.gui .top-menu { position: fixed; width: 100%; z-index: 2; }
+		.gui .top-buttons { position: absolute; display: inline-flex; justify-content: flex-end; top: 0px; right: 15px; z-index: 2; }
+		.gui .top-buttons div { pointer-events: all; cursor: pointer; font-size: 15px; padding: 10px; border: 2px solid #000; border-radius: 15px; background: #000000aa; }
+		.gui .signal { min-width: 100px; }
+		.gui .main { display: none; position: absolute; width: 100%; }
+		.gui .page { display: none; position: absolute; width: 100%; }
+		.gui .page-content { text-align: center; font-size: 30px; }
+		.gui .title { background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(20px); font-size: 25px; padding-top: 10px; padding-left: 15px; border-bottom: 5px solid #fff; }
+		.gui .actionList { display: flex; justify-content: flex-end; flex-direction: column; height: 125vh; width: 100%; position: absolute;top: -33vh; z-index: 1; }
+		.gui .actionList div:not(.yt-title, .currentUpload div) { margin-bottom: 2px; width: 100%; font-size: 20px; position: relative; border-bottom: 1px solid #000; box-shadow: rgba(0, 0, 0, 0.1) 0px 20px 25px -5px, rgba(0, 0, 0, 0.04) 0px 10px 10px -5px; }
+		.gui .actionList .negative { background: #e41749cc; }
+		.gui .actionList .error { background: #ffc10782; }
+		.gui .actionList .neutral { background: #34e2ff55; }
+		.gui .actionList .positive { background: #1bff0055; }
+		.gui .actionList .connection { background: #ffffff55; display: flex; align-items: center; flex-direction: column; }
+		.gui .actionList .connection span { font-size: 40px; }
+		.gui .actionList img { width: 40px; height: 35px; }
+		.gui .actionList .connection img { position: relative; top: 0; left: 0; }
+		.gui .actionList i { position: absolute; right: 25px; top: 25px; }
+		.gui .actionList .currentUpload { animation: currUpload-slide 4s linear infinite; min-height: 65px; background-size: 30px 30px; background-image: linear-gradient( 135deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent ); }
+		.gui .actionList .currentUpload span.process-bar { display: block; background-color: #34c2e394; border-top-right-radius: 25px; border-bottom-right-radius: 25px; transition: 1s; height: 100%; box-shadow: 0 0px 5px #000 inset, 0 5px 0 #444; }
+		.gui .actionList .currentUpload .upload-info { position: absolute; bottom: 0px; width: 100%; }
+		.gui .actionList .currentUpload .upload-info-user { position: absolute; }
+		.gui .actionList .currentUpload .upload-info-container { display: flex; width: 100%; justify-content: space-between; }
+		.gui .actionList .currentUpload .upload-info-container div { width: 40%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+		.gui .actionList .currentUpload .upload-info-container .upload-percent { width: 10% !important; text-align: center; }
+		.gui .actionList .currentUpload .upload-info-container .upload-status { text-align: end; }
+		
+		.gui .filelist { font-size: 2.5vw; }
+		.gui .filelist .filelist-result { border-top: #000 1px solid; cursor: pointer; position: relative; padding: 0px; font-size: 2.5vw; display: flex; transition: 0.25s; text-align: left; justify-content: space-between; }
+		.gui .filelist .filelist-result div:not(#filelist-result-info) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.gui .filelist .filelist-result #filelist-result-info {}
+		.gui .filelist .filelist-result #filelist-result-title { width: 65%; }
+		.gui .filelist .filelist-result #filelist-result-channel { width: 15%; text-align: end; }
+		.gui .filelist .filelist-result:hover { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); }
+		.gui .filelist .filelist-result-summary { text-align: center; background: rgba(0, 0, 0, 0.15); backdrop-filter: blur(10px); }
+		.gui .filelist .filelist-result-owner img { left: 5px; }
+		.gui .filelist .filelist-result-artist img { left: 5px; }
+		.gui .filelist .filelist-result-title { width: 50%; }
+		.gui .filelist .filelist-result-buttons { display: flex; justify-content: center; font-size: 35px; z-index: 1; }
+		.gui .filelist .filelist-additional-info { display: flex; text-align: left; transition: 0.5s; }
+		.gui .filelist .filelist-additional-info div:not(.filelist-additional-info-preview) { position: relative; padding-left: 120px; font-size: 15px; flex: 1; }
+		.gui .filelist .filelist-additional-info-preview { position: absolute; right: 1px; bottom: 25px; }
+		.gui .filelist .hidden { display: flex; height: 0px; opacity: 0; pointer-events: none; }
+		.gui .filelist .shown { height: 100px; opacity: 1; }
+		.gui .filelist .artist-preview:hover { background-size: 130% 130%; font-size: 1.9vmin; box-shadow: 0px 0px 20px white; }
+		.gui .filelist .artist-preview { background-size: 100% 100%; background-position: top center; display: inline-table; vertical-align: bottom; margin: 7px; width: 120px; height: 120px; font-size: 1.75vmin; text-shadow: 0px 1px 5px black; transition: 0.5s; cursor: pointer; }
+		.gui .filelist .artist-banner { background-position: center; background-repeat: no-repeat; height: 250px; }
+		.gui .filelist .album, .artist { text-align: left; margin: 20px; padding: 10px; background-color: #0000004d; border-radius: 25px; }
+		.gui .filelist .album-title, artist-title { border-bottom: 2px solid #fff; font-size: xxx-large; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+		.gui .filelist .file { display: none; padding: 20px; }
+		.gui .filelist .file textarea { resize: none; width: 100%; height: 260px; }
+		
+		.gui .filter-grid { display: flex; justify-content: space-between; }
+		.gui .filter-grid div { position: relative; align-items: center; }
+		.artist-container, .title-container, .album-container { flex: 1; font-size: 1vw; }
+		.artist-input, .title-input, .album-input { display: grid; grid-column-gap: 0px; grid-row-gap: 0px; align-content: flex-start; }
+		.artist-options, .title-options, .album-options { position: absolute; top: calc(1.0vw + 20px); display: inherit; margin-top: 0.25rem; font-size: 1.75vw; position: absolute !important; min-height: 100px; width: 100%; color: #fff; z-index: 1; }
+		.gui .filter-container button { right: 0; top: 0; position: absolute; }
+		.gui .filter-grid .filter-container { font-size: 2vw; }
+		.gui .filter-grid .filter-title { height: 100%; }
+		.gui .filter-grid .artist-options { border-bottom-left-radius: 25px; }
+		.gui .filter-grid .title-options { }
+		.gui .filter-grid .album-options { border-bottom-right-radius: 25px; }
+		.gui .filter-grid .options-controls { background-color: #838383; display: inline-flex; justify-content: space-between; width: 100%; }
+		.gui .filter-grid .options-container { background-color: #838383; transition: background-color 500ms linear; }
+		.gui .filter-grid .options-container:hover { background-color: #444; cursor: pointer; }
+		.gui .filter-grid .options-container div, .gui .filter-grid .filter-container div { display: flex !important; }
+		
+		#messages { list-style-type: none; margin: 0; padding: 0; }
+		#messages > li { padding: 0.5rem 1rem; }
+		#messages > li:nth-child(odd) { background: #efefef; }
+		
+		.error-msg {
+			position: absolute;
+			padding-top: 10px;
+			width: 100%;
+			height: 100%;
+			text-align: center;
+			background: #570b059c;
+		}
+    </style>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.css">
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+	<script src="https://code.jquery.com/ui/1.13.1/jquery-ui.js" integrity="sha256-6XMVI0zB8cRzfZjqKcD01PBsAy3FlDASrlC8SxCpInY=" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2"></script>
+	<script src="https://cdn.jsdelivr.net/npm/luxon@1.27.0"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0"></script>
+		<script>
+		$(document).ready(function(){						
+			/* login functionality */
+			socket.on('login', function(data){
+				/* successful login? */
+				if(data.success) {
+					if(data.success == true) { 
+						gui.alert({success: true, 'msg': 'Successfully logged in!'});
+						$('.pincode').fadeOut("slow", function() {$('.pincode').remove();});
+						gui.init();
+					}
+				} else {
+					/* on connect */
+					if(data.action == 'connected') {
+						/* delete the old page */
+						$('.gui .main').remove();
+						/* attempt login on page load */
+						socket.emit("login", {
+							uuid: MyUUID
+						});
+					}
+					/* pincode & validate */
+					if(data.action == 'validate' || data.action == 'pincode') { pincode.display(data); }
+					if(data.action == 'invalid-pin') { 
+						gui.alert({'action': 'invalid-pin', 'msg': 'Invalid entry'});
+						$('.fields').addClass('miss');
+						pincode.typedIn = ""; 
+						setTimeout(function() {
+							$('.fields').removeClass('miss');
+							$('.pincode .fields .grid__col').removeClass('active');
+						}, 500);
+					}
+				}
+			});
+			
+			/* pulse functionality */
+			socket.on('heartbeat', function() {
+				let time = performance.now();
+				gui.signal.timestamp_received = time;
+			});
+			
+			/* system / settings functionality */
+			socket.on('system', function(data) {
+				/* display result */
+				gui.alert(data);
+				
+				/* return to settings if success */
+				if(data.success) {
+				
+				} else {
+				
+				}
+				
+				/* return to settings */
+				gui.show({'action': 'settings'});
+			});
+			
+			/* actionList functionality */
+			socket.on('actionList', function(data) {
+				gui.actionList(data);
+			});
+			
+			/* uploadStatus functionality */
+			socket.on('uploadStatus', function(data) {
+				gui.uploadStatus(data);
+			});
+			
+			/* music functionality */
+			socket.on('music', function(data) {
+				if(data.action == 'search') {
+					/* still relatable? */
+					if($('.gui .page #form #query')[0].value == data.query) {
+						var dir = $('.page-content .filelist');
+						
+						/* clear filelist on page 0 */
+						if(data.page == 0) { $(dir).html(''); }
+						
+						/* any results? */
+						if(data.length > 0) {
+							$.each(data.data, function( index, value ) {
+								var tmp_d = document.createElement('div');
+								$(tmp_d).addClass('filelist-result')
+									.attr('id', data.data[index].key)
+									.attr('onclick', 'gui.click_file(' + data.data[index].key + ')');
+									
+								/* key & link */
+								var tmp_d_timestamp = document.createElement('div');
+								$(tmp_d_timestamp).attr('id', 'filelist-result-info')
+									.html("#" + data.data[index].key + ", <a href=\"https://www.youtube.com/watch?v=" + data.data[index].id + "\"  target=\"_blank\"><i class=\"fa-brands fa-youtube\"></i></a>");
+								$(tmp_d).append(tmp_d_timestamp);
+								
+								/* title */
+								var tmp_d_title = document.createElement('div');
+								$(tmp_d_title).attr('id', 'filelist-result-title')
+									.html(data.data[index].title);
+								$(tmp_d).append(tmp_d_title);
+								
+								/* channel */
+								var tmp_d_channel = document.createElement('div');
+								$(tmp_d_channel).attr('id', 'filelist-result-channel')
+									.html(data.data[index].channel);
+								$(tmp_d).append(tmp_d_channel);
+								
+								/* done */
+								$(dir).append(tmp_d);
+							});
+							
+							/* more results available? */
+							if(data.length > (data.page + 1) * 9) {
+								/* scrolled down, auto-load */
+								if($(window).scrollTop() + $(window).height() > $(document).height() - $(window).height() * 3) {
+									gui.search_files(data.query, data.page + 1);
+								} else {
+								/* add proposal button for when they get there */
+									var tmp_d_lm = document.createElement('div');
+									$(tmp_d_lm).addClass('load-more')
+										.attr('onclick', 'gui.search_files("' + data.query + '", ' + (data.page + 1) + '); $(this).remove();')
+										.html("Load more");
+									
+									$(dir).append(tmp_d_lm);
+								}
+							}
+						} else {
+							dir.html('No results found.');
+						}
+					}
+				}
+				
+				if(data.action == "read") {
+					/* find parent div */
+					var tmp_parent = $('.filelist-result#' + data.key);
+					if($(tmp_parent).length == 1) {
+					
+						var tmp_d = document.createElement('div');
+						$(tmp_d).hide()
+							.addClass('file')
+							.attr('id', 'file-' + data.key);
+						
+						/* display uuids if present */
+						if(data.data.sl_uuids != null) {
+							var tmp_textbox = document.createElement('textarea');
+							var tmp_array = data.data.sl_uuids.split("|");
+							var tmp_textures = [
+								'592650a0-06cf-e00a-f3ab-28330fa85209',
+								'f6b4b3db-533a-165e-1ded-654e5124a8ec',
+								'430ab714-0bbd-01da-c1f2-9140b4ec392c',
+								'8229042e-657b-c84e-805a-b161135989ff',
+								'846634da-7873-d7e9-adb4-e9388e560ebd',
+								'b1bb6b57-ff79-29ae-5e05-9e010c0adbdc'
+							];
+							
+							$(tmp_textbox).append('Downloaded via BeanOS, uploaded by ' + data.data.owner + '\n==========\n');
+							
+							$(tmp_textbox).append(data.data.yt_title + '\n');
+							$(tmp_textbox).append(tmp_textures[Math.floor(Math.random() * tmp_textures.length)] + '\n');
+							$(tmp_textbox).append(data.data.sl_cliplength + '\n');
+							
+							$(tmp_array).each(function (index) {
+								$(tmp_textbox).append(tmp_array[index] + '\n');
+							});
+							
+							$(tmp_d).append(tmp_textbox);
+						}
+						
+						$(tmp_d).insertAfter(tmp_parent);
+						
+						$('#file-' + data.key).slideDown('slow');
+					} else {
+						/* wat */
+						console.log(tmp_parent);
+					}
+				}
+			});
+			
+			/* deezer search filters functionality */
+			socket.on('deezer', function(data) {
+				gui.searchResults.showOptions(data);
+			});
+			
+			/* stats functionality */
+			socket.on('stats', function(data) {
+				/* update charts if available */
+				if(gui.activeCharts.length != 0) {
+					gui.stats.updateCharts(data);
+				} else {
+					gui.stats.createCharts(data);
+				}
+			});
+			
+			/* lookup functionality */
+			socket.on('lookup', function(data) {
+				/* add user? */
+				if(data.action == 'useradd') {
+					Object.assign(memory.knownDATA['UUIDs'][data.uuid], { 'uuid': data.uuid, 'username': data.username, 'userpic': data.userpic });
+					/* look for placeholders and replace with */
+					$('#' + data.uuid).replaceWith('<img src="https://picture-service.secondlife.com/' + data.userpic + '/256x192.jpg" />' + data.username);
+				}
+				
+				/* add artist? */
+				if(data.action == 'artistadd') {
+					memory.knownDATA['artistIDs'][data.data.deezer_id] = data.data;
+					/* look for placeholders and replace with */
+					$('#artist-' + data.data.deezer_id).replaceWith('<img src="' + data.data.picture_small + '" />' + data.data.name);
+				}
+				
+				/* add song? */
+				if(data.action == 'songadd') {
+					memory.knownDATA['songIDs'][data.data.deezer_id] = data.data;
+					/* look for placeholders and replace with */
+					$('#song-' + data.data.deezer_id).replaceWith(data.data.title);
+				}
+				
+				/* add album? */
+				if(data.action == 'albumadd') {
+					memory.knownDATA['albumIDs'][data.data.deezer_id] = data.data;
+					/* look for placeholders and replace with */
+					$('#album-' + data.data.deezer_id).replaceWith('<img src="' + data.data.cover_small + '" />' + data.data.title);
+				}
+			});
+		});
+		
+		var socket = io();
+		var MyUUID = window.location.search.substring(1);
+		
+		var pincode = {
+			/* (A) Globals */
+			type : "",
+			typedIn : "",
+			pinLength : 0,
+			/* (B) Functions */
+			display : function(data) {
+				pincode.type = data.action;
+				pincode.typedIn = "";
+				/* create initials */
+				var tmp_d = document.createElement('div');
+				var preach = "";
+				if(pincode.type == 'validate') { preach = '<b>Please enter validation code.</b><br />You will have received this in your inworld IM\'s.'; }
+				if(pincode.type == 'pincode') { preach = '<b>Please unlock with your pin code.</b><br />You can change this while logged in.'; };
+				if(pincode.type == 'change-pincode') { preach = '<b>Please enter a new pin code.</b><br />You will need to remember this code.'; };
+				$(tmp_d).addClass('pincode')
+					.html(preach);;
+				
+				var tmp_d_fields = document.createElement('div');
+				$(tmp_d_fields).addClass('fields');
+				
+				var tmp_d_fields_grid = document.createElement('div');
+				$(tmp_d_fields_grid).addClass('grid');
+				
+				/* type determines length */
+				if(pincode.type == 'validate') { pincode.pinLength = 6;}
+				if(pincode.type == 'pincode') { pincode.pinLength = 4;}
+				if(pincode.type == 'change-pincode') { pincode.pinLength = 4;}
+				
+				for(var i = 0; i < pincode.pinLength; i++) {
+					$(tmp_d_fields_grid).append('<div class="grid__col"><span></span></div>');
+				};
+				
+				$(tmp_d_fields).append(tmp_d_fields_grid);
+				$(tmp_d).append(tmp_d_fields);
+				/* add input buttons */
+				var tmp_d_numbers = document.createElement('div');
+				$(tmp_d_numbers).addClass('numbers');
+				
+				var tmp_d_numbers_grid = document.createElement('div');
+				$(tmp_d_numbers_grid).addClass('grid');
+				
+				for(var i = 1; i < 10; i++) {
+					$(tmp_d_numbers_grid).append('<div class="grid__col"><button onclick="pincode.click()">' + i + '</button></div>');
+				};
+				$(tmp_d_numbers_grid).append('<div class="grid__col"><button  onclick="pincode.click()">0</button></div>');
+				
+				$(tmp_d_numbers).append(tmp_d_numbers_grid);
+				$(tmp_d).append(tmp_d_numbers);
+				
+				/* add to gui */
+				$('.gui').append(tmp_d);
+				$('.pincode').fadeIn("slow");
+			},
+			
+			click : function() {
+				var clickedNumber = $(event.target).text().toString();
+				pincode.typedIn = pincode.typedIn + clickedNumber;
+				var typedLength = parseInt(pincode.typedIn.length);
+				$('.pincode .fields .grid__col:eq(' + (typedLength - 1) + ')').addClass('active');
+				
+				if(typedLength == pincode.pinLength) {
+					/* validate or enforce? */
+					if(pincode.type == 'change-pincode') {
+						/* transmit settings */
+						socket.emit('api', {
+							app:'system',
+							action: 'settings',
+							type: 'change-pin',
+							pin: pincode.typedIn
+						});
+					} else {
+						/* validate with socketio */
+						socket.emit('login', {
+							uuid: MyUUID,
+							pin: pincode.typedIn
+						});
+					}
+				}
+				
+				gui.audio('tick');
+			}
+		}
+		
+		var memory = {
+			knownDATA : {
+				'UUIDs': [],
+				'songIDs': [],
+				'artistIDs': [],
+				'albumIDs': []
+			}
+		};
+		
+		var gui = {
+			/* (A) Globals */			
+			signal : {
+				'timestamp_requested': 0,
+				'timestamp_received': 0
+			},
+			sharedTimer : 0,
+			pulse : 0,
+			activeCharts : [],
+			previewAudio : new Audio(),
+			/* (B) Functions */
+			init : function() {
+				var tmp_d = document.createElement('div');
+				$(tmp_d).addClass('main')
+					.append('<div class="main-child top-buttons"><div class="main-child" onclick="gui.show({\'action\': \'news\'})"><i class="fa-regular fa-newspaper fa-2xl"></i></div><div class="main-child" onclick="gui.show({\'action\': \'stats\'})"><i class="fa-solid fa-chart-column fa-2xl"></i></div><div class="main-child" onclick="gui.show({\'action\': \'search\'})"><i class="fa-solid fa-magnifying-glass fa-2xl"></i></div><div class="main-child signal"><i class="fa-solid fa-signal fa-2xl"></i> <span>0ms</span></div><div class="main-child" onclick="gui.show({\'action\': \'settings\'})"><i class="fa-solid fa-gear fa-2xl"></i></div></div>')
+					.append('<div class="main-child actionList"></div>')
+					.append('<form id="form" action="">'
+					//+ '<div class="main-child error-msg"><h3 style="margin: 0;">Upload broken during update. :(</h2>You can only request already uploaded songs right now. (Use search)</div>'
+					+ '<div class="main-child form-line"><input id="query" autocomplete="off" onkeydown="gui.req_input(event.key)" /><button onclick="gui.req_send(\'NULL\')">Send</button></div></form>');
+				
+				$('.gui').append(tmp_d);
+				$('.main').fadeIn("slow");
+				
+				if(gui.pulse == 0) {
+					gui.pulse = setInterval(function(){
+						gui.heartbeat();
+					}, 2000);
+				}
+			},
+			
+			heartbeat : function() {
+				if(gui.signal.timestamp_received != 0) {
+					let tmp_time = gui.signal.timestamp_received - gui.signal.timestamp_requested;
+					if(tmp_time < 1.0) {
+						tmp_time = tmp_time.toFixed(1);
+					} else {
+						tmp_time = tmp_time.toFixed();
+					}
+					
+					$('.gui .signal span').html(tmp_time + 'ms');
+					gui.signal.timestamp_requested = 0;
+				} else {
+					let time = performance.now();
+					$('.gui .signal span').html((time - gui.signal.timestamp_requested) + 'ms');
+				}
+				
+				if(gui.signal.timestamp_requested == 0) {
+					gui.signal.timestamp_requested = performance.now();
+					gui.signal.timestamp_received = 0;
+				}
+				
+				socket.emit('heartbeat');
+			},
+			
+			show : function(data) {
+				gui.audio('tick');
+				/* main */
+				if(data.action == 'main') {
+					$('.gui div:not(.main):not(.main-child)').fadeOut('slow', function() {
+						$(this).remove();
+					});
+					$('.gui .main').fadeIn('slow');
+					$('.gui .main-child').fadeIn('slow');
+				}
+				
+				/* settings */
+				if(data.action == 'settings') {
+					$('.gui div').fadeOut('slow');
+					var tmp_d = document.createElement('div');
+					$(tmp_d).addClass('page')
+					var tmp_d_tm = document.createElement('div');
+					$(tmp_d_tm).addClass('top-menu')					
+						.append('<div class="title">Settings</div>')
+						.append('<div class="top-buttons"><div onclick="gui.show({\'action\': \'main\'})"><i class="fa-solid fa-rotate-left fa-2xl"></i></div></div>');
+					$(tmp_d).append(tmp_d_tm);
+					
+					var tmp_d_content = document.createElement('div');
+					$(tmp_d_content).addClass('page-content')
+						.append('Here are your available settings.')
+						.append('<div class="settings-list"><button onclick="gui.show({\'action\': \'change-pincode\'})">Change pincode</button></div>');
+					
+					$(tmp_d).append(tmp_d_content);
+					$('.gui').append(tmp_d);
+					$('.page').fadeIn('slow');
+				}
+				
+				/* search */
+				if(data.action == 'search') {
+					$('.gui div').fadeOut('slow');
+					var tmp_d = document.createElement('div');
+					$(tmp_d).addClass('page');
+					
+					/* create form */
+					var tmp_form = document.createElement("form");
+					$(tmp_form).attr("action", "")
+						.attr('id', 'form');
+						
+					/* append search query field */
+					var tmp_form_query = document.createElement("input");
+					$(tmp_form_query).attr('autocomplete', 'off')
+						.attr('placeholder', 'start typing to search..')
+						.attr('id', 'query')
+						.attr('onkeydown', 'gui.search_keydown(event)')
+						.attr('onkeyup', 'gui.search_keyup(event)');
+					$(tmp_form).append(tmp_form_query);
+					
+					/* create grid containers */
+					var tmp_grid_container = document.createElement('div');
+					$(tmp_grid_container).addClass('filter-grid');
+					
+					/* create selection container */
+					let tmp_selected_container = document.createElement('div');
+					$(tmp_selected_container).addClass('filter-container');
+					
+					/* create artist div + form */					
+					var tmp_d_artist = document.createElement('div');
+					$(tmp_d_artist).addClass('artist-container');
+					
+					var tmp_d_artist_input = document.createElement('div');
+					$(tmp_d_artist_input).addClass('artist-input');
+					
+					var tmp_form_artist_label = document.createElement('label');
+					$(tmp_form_artist_label).attr('for', 'artist')
+						.html('Artist: ');
+					$(tmp_d_artist_input).append(tmp_form_artist_label);
+					
+					var tmp_form_artist_input = document.createElement('input');
+					$(tmp_form_artist_input).attr('type', 'text')
+						.attr('id', 'artist')
+						.attr('onkeydown', 'gui.search_keydown(event)')
+						.attr('onkeyup', 'gui.filter_input(event)');
+					$(tmp_d_artist_input).append(tmp_form_artist_input);
+					
+					$(tmp_d_artist).append(tmp_d_artist_input);
+					$(tmp_selected_container).clone().appendTo(tmp_d_artist);
+					
+					$(tmp_grid_container).append(tmp_d_artist);
+					
+					/* create title div + form */
+					var tmp_d_title = document.createElement('div');
+					$(tmp_d_title).addClass('title-container');
+					
+					var tmp_d_title_input = document.createElement('div');
+					$(tmp_d_title_input).addClass('title-input');
+					
+					var tmp_form_title_label = document.createElement('label');
+					$(tmp_form_title_label).attr('for', 'title')
+						.html('Title: ');
+					$(tmp_d_title_input).append(tmp_form_title_label);
+					
+					var tmp_form_title_input = document.createElement('input');
+					$(tmp_form_title_input).attr('type', 'text')
+						.attr('id', 'title')
+						.attr('onkeydown', 'gui.search_keydown(event)')
+						.attr('onkeyup', 'gui.filter_input(event)');
+					$(tmp_d_title_input).append(tmp_form_title_input);
+					
+					$(tmp_d_title).append(tmp_d_title_input);
+					$(tmp_selected_container).clone().appendTo(tmp_d_title);
+					
+					tmp_grid_container.append(tmp_d_title);
+					
+					/* create album div + form */
+					var tmp_d_album = document.createElement('div');
+					$(tmp_d_album).addClass('album-container');
+					
+					var tmp_d_album_input = document.createElement('div');
+					$(tmp_d_album_input).addClass('album-input');
+					
+					var tmp_form_album_label = document.createElement('label');
+					$(tmp_form_album_label).attr('for', 'album')
+						.html('Album: ');
+					$(tmp_d_album_input).append(tmp_form_album_label);
+					
+					var tmp_form_album_input = document.createElement('input');
+					$(tmp_form_album_input).attr('type', 'text')
+						.attr('id', 'album')
+						.attr('onkeydown', 'gui.search_keydown(event)')
+						.attr('onkeyup', 'gui.filter_input(event)');
+					$(tmp_d_album_input).append(tmp_form_album_input);
+					
+					$(tmp_d_album).append(tmp_d_album_input);
+					$(tmp_selected_container).clone().appendTo(tmp_d_album);
+					
+					tmp_grid_container.append(tmp_d_album);
+					
+					/* apply to form */
+					$(tmp_form).append(tmp_grid_container);
+					
+					var tmp_d_tm = document.createElement('div');
+					$(tmp_d_tm).addClass('top-menu')
+						.css('position', 'relative')
+						.append('<div class="title">Search</div>')
+						.append('<div class="top-buttons"><div onclick="gui.show({\'action\': \'main\'})"><i class="fa-solid fa-rotate-left fa-2xl"></i></div></div>')
+					tmp_d_tm.append(tmp_form);
+					$(tmp_d).append(tmp_d_tm);
+						
+					var tmp_d_content = document.createElement('div');
+					$(tmp_d_content).addClass('page-content')
+						.append('<div class="filelist"></div>');
+					
+					$(tmp_d).append(tmp_d_content);
+					$('.gui').append(tmp_d);
+					$('.page').fadeIn('slow');
+				}
+				
+				/* stats */
+				if(data.action == 'stats') {
+					$('.gui div').fadeOut('slow');
+					var tmp_d = document.createElement('div');
+					$(tmp_d).addClass('page');
+					
+					var tmp_d_tm = document.createElement('div');
+					$(tmp_d_tm).addClass('top-menu')
+						.append('<div class="title">Stats</div>')
+						.append('<div class="top-buttons"><div onclick="gui.show({\'action\': \'main\'});clearInterval(gui.sharedTimer)"><i class="fa-solid fa-rotate-left fa-2xl"></i></div></div>');
+					$(tmp_d).append(tmp_d_tm);
+						
+					var tmp_d_content = document.createElement('div');
+					$(tmp_d_content).addClass('page-content');
+						
+					/* create default divs */
+					var tmp_d_stats_container = document.createElement('div');
+					$(tmp_d_stats_container).addClass('stats-container');
+					
+					$(tmp_d_stats_container).appendTo(tmp_d_content);
+					
+					$(tmp_d).append(tmp_d_content);
+					$('.gui').append(tmp_d);
+					$('.page').fadeIn('slow');
+					
+					/* nullify previous charts */
+					gui.activeCharts = [];
+					
+					/* start stats call timer */
+					gui.sharedTimer = setInterval(function(){
+						socket.emit('api', {
+							app:'stats'
+						});
+					}, 2000);
+				}
+				
+				/* change pin */
+				if(data.action == 'change-pincode') {
+					$('.gui div').fadeOut('slow');
+					pincode.display(data);
+				}
+			},
+			
+			req_input : function(key) {
+				if(key == 13) {
+					event.preventDefault();
+					gui.req_send('NULL');
+				}
+			},
+			
+			req_send : function(yt_id) {
+				/* requested by .main? */
+				if(yt_id == 'NULL') {
+					event.preventDefault();
+					$('.gui .main #form #query').prop("disabled", true);
+					$('.gui .main #form button').prop("disabled", true);
+					socket.emit('api', {
+						app:'music',
+						action: 'add-song',
+						url: $('.gui .main form input').val()
+					});
+					
+					/* clear field if it's there */
+					if($('.gui .main form :input').length) {
+						$('.gui #query').animate({ backgroundColor : '#4CAF50' }, "fast");
+						setTimeout(function() {
+							$('.gui #query').animate({ backgroundColor : '#ffffff' }, "slow");
+							gui.clearField();
+						}, 500);
+					}
+				} else {
+					/* requested elsewhere */
+					socket.emit('api', {
+						app:'music',
+						action: 'add-song',
+						url: yt_id
+					});
+				}
+			},
+			
+			search_keydown : function(e) {
+				if(e.key == 13) {
+					event.preventDefault();
+				}
+			},
+			
+			search_keyup : function(e) {
+				/* send search unless empty */
+				if(e.target.value.length != 0) {
+					/* clean old page */
+					$('.page-content .filelist').html('<i class="fa-solid fa-spinner fa-spin"></i>');
+					
+					/* init search */
+					gui.search_files(e.target.value, 0);
+				}
+			},
+			
+			search_files : function(value, pageNr) {
+				/* build query */
+				var tmp_query = {
+					app: 'music',
+					action: 'search',
+					query: value,
+					page: pageNr
+				}
+				
+				/* check for filters and add if present */
+				if($('.filter-container').children().length != 0) {
+					tmp_query.filters = {};
+					
+					var tmp_artist = $('.filter-artist');
+					if(tmp_artist.length != 0) { tmp_query.filters.artist = tmp_artist[0].id.substring(7); }
+					var tmp_title = $('.filter-title');
+					if(tmp_title.length != 0) { tmp_query.filters.title = tmp_title[0].id.substring(6); }
+					var tmp_album = $('.filter-album');
+					if(tmp_album.length != 0) { tmp_query.filters.album = tmp_album[0].id.substring(6); }
+				}
+				
+				socket.emit('api', tmp_query);
+			},
+			
+			click_file : function(value) {
+				var tmp_d = $('.file#file-' + value);
+				/* already loaded? */
+				if(tmp_d.length > 0) {
+					$(tmp_d).each(function () {
+						$(this).slideUp("slow", function() { $(this).remove(); } );
+					});
+				} else {
+					gui.show_file(value);
+				}
+			},
+			
+			show_file : function(value) {
+				socket.emit('api', {
+					app: 'music',
+					action: 'read',
+					key: value
+				});
+			},
+			
+			filter_input : function(e) {
+				if(e.key != 13) {
+					/* send search unless empty, then clean up */
+					if(e.target.value.length != 0) {
+						gui.filter_search(e.target.id, e.target.value, 1);
+					} else {
+						if($('.' + e.target.id + '-options').length != 0) {
+							$('.' + e.target.id + '-options').remove();
+						}
+					}
+				} else {
+					event.preventDefault();
+				}
+			},
+			
+			filter_pagenate : function(searchtype, query, page) {
+				event.preventDefault();
+				gui.filter_search(searchtype, query, page);
+			},
+			
+			filter_search : function(searchType, searchQuery, pageNr) {
+				socket.emit('api', {
+					app: 'deezer',
+					action: 'search',
+					type: searchType,
+					query: searchQuery,
+					page: pageNr
+				});
+			},
+			
+			searchResults : {
+				showFiles : function(data) {
+					
+				},
+				
+				showOptions : function(data) {
+					/* store data if present */
+					for(let i = 0; i < data.data.length; i++) {
+						if(data.type == "title") {	memory.knownDATA['songIDs'][data.data[i].deezer_id] = data.data[i]; }
+						if(data.type == "artist") { memory.knownDATA['artistIDs'][data.data[i].deezer_id] = data.data[i]; }
+						if(data.type == "album") { memory.knownDATA['albumIDs'][data.data[i].deezer_id] = data.data[i]; }
+						if(data.data[i].deezer_artist != undefined) { memory.knownDATA['artistIDs'][data.data[i].deezer_artist.deezer_id] = data.data[i].deezer_artist; }
+						if(data.data[i].deezer_album != undefined) { memory.knownDATA['albumIDs'][data.data[i].deezer_album.deezer_id] = data.data[i].deezer_album; }
+					}
+					
+					console.log('displaying search options - ' + data.data.length);
+					/* check if already exists */
+					if($('.' + data.type + '-options').length == 0) {
+						console.log('div ' + data.type + '-options not found, making one');
+						/* create div */
+						let tmp_d = document.createElement('div');
+						$(tmp_d).addClass(data.type + '-options');						
+						$('.' + data.type + '-container').append(tmp_d);
+						$('.' + data.type + '-options').hide().fadeIn('slow'); 
+					}
+					
+					/* clear old table */
+					$('.' + data.type + '-options').html('');
+					
+					/* page number and results found */
+					let tmp_d_result = document.createElement('div');
+					$(tmp_d_result).addClass('options-controls');
+					
+					/* back button? */
+					if(data.page > 1) {
+						$(tmp_d_result).append('<button type="button" onclick="gui.filter_pagenate(\'' + data.type + '\', \'' + data.query + '\', ' + (data.page - 1) + ')"><</button>');
+					} else {
+						$(tmp_d_result).append('<button type="button">.</button>');
+					}
+					
+					$(tmp_d_result).append('Page ' + data.page + ' - ' + data.length + ' results');
+					
+					/* forward button? */
+					if(data.page < data.length / 9) {
+						$(tmp_d_result).append('<button type="button" onclick="gui.filter_pagenate(\'' + data.type + '\', \'' + data.query + '\', ' + (data.page + 1) + ')">></button>');
+					} else {
+						$(tmp_d_result).append('<button type="button">.</button>');
+					}
+					
+					$('.' + data.type + '-options').append(tmp_d_result);
+					
+					/* refresh with options */
+					for(let i = 0; i < data.data.length; i++) {
+						let tmp_option = document.createElement('div');
+						$(tmp_option).addClass('options-container');
+						
+						/* artist info? */
+						if(data.type == 'artist') {
+							let tmp_artist = document.createElement('div');
+							$(tmp_artist).append('<img src="' + data.data[i].deezer_artist.picture_small + '"> ' + data.data[i].deezer_artist.name);
+							$(tmp_option).append(tmp_artist);
+							
+							/* store data in div */
+							$(tmp_option).attr('onclick', 'gui.searchResults.selectResult("' + data.type + '", ' + data.data[i].deezer_artist.deezer_id + ')');
+						}
+						
+						/* title info? */
+						if(data.type == 'title') {
+							let tmp_song = document.createElement('div');
+							$(tmp_song).append('<img src="' + data.data[i].deezer_artist.picture_small + '"> ' + data.data[i].title + ' by ' + data.data[i].deezer_artist.name);
+							$(tmp_option).append(tmp_song);
+							
+							/* store data in div */
+							$(tmp_option).attr('onclick', 'gui.searchResults.selectResult("' + data.type + '", ' + data.data[i].deezer_id + ')');
+						}
+						
+						/* album info? */
+						if(data.type == 'album') {
+							let tmp_album = document.createElement('div');
+							$(tmp_album).append('<img src="' + data.data[i].cover_small + '"> ' + data.data[i].title);
+							$(tmp_option).append(tmp_album);
+							
+							/* store data in div */
+							$(tmp_option).attr('onclick', 'gui.searchResults.selectResult("' + data.type + '", ' + data.data[i].deezer_id + ')');
+						}
+						
+						$('.' + data.type + '-options').append(tmp_option);
+					}
+				},
+				
+				selectResult : function(type, id) {
+					/* blank old input */
+					$('.' + type + '-input input').val("");
+					
+					/* validate if already added */
+					if($('.' + type + '-container #' + type + '-' + id).length == 0) {
+						console.log('not found, creating ' + type);
+						let tmp_d = document.createElement('div');
+						
+						/* handle according to type */
+						switch (type) {
+							case 'artist':
+								$(tmp_d).append('<img src="' + memory.knownDATA.artistIDs[id].picture_small + '"> ' + memory.knownDATA.artistIDs[id].name)
+									.attr('class', 'filter-artist')
+									.attr('id', 'artist-' + id);
+								
+								$('.artist-options').remove();
+								
+								/* remove previously selected titles/albums */
+								$('.title-container .filter-container').html("");
+								$('.album-container .filter-container').html("");
+								break;
+							case 'title':
+								/* add artist if available */
+								let tmp_artistData = memory.knownDATA.songIDs[id].deezer_artist;
+								if(tmp_artistData != undefined) {
+									let tmp_d_artist = document.createElement('div');
+									$(tmp_d_artist).html('<img src="' + tmp_artistData.picture_small + '"> ' + tmp_artistData.name)
+										.append('<button type="button" onclick="$(this).parent().fadeOut(300, function() { $(this).remove(); });">X</button>')
+										.attr('class', 'filter-artist')
+										.attr('id', 'artist-' + tmp_artistData.deezer_id);
+									$('.artist-container .filter-container').html("").append(tmp_d_artist);
+								}
+								/* add album if available */
+								let tmp_albumData = memory.knownDATA.songIDs[id].deezer_album;
+								if(tmp_albumData != undefined) {
+									let tmp_d_album = document.createElement('div');
+									$(tmp_d_album).html('<img src="' + tmp_albumData.cover_small + '"> ' + tmp_albumData.title)
+										.append('<button type="button" onclick="$(this).parent().fadeOut(300, function() { $(this).remove(); });">X</button>')
+										.attr('class', 'filter-album')
+										.attr('id', 'album-' + tmp_albumData.deezer_id);
+									$('.album-container .filter-container').html("").append(tmp_d_album);
+								}
+								
+								/* finally add title */
+								$(tmp_d).append('<i class="fa-solid fa-circle-play" style="font-size: 56px;"></i> ' + memory.knownDATA.songIDs[id].title)
+									.attr('class', 'filter-title')
+									.attr('id', 'title-' + id);
+								$('.title-options').remove();
+								break;
+							case 'album':
+								$(tmp_d).append('<img src="' + memory.knownDATA.albumIDs[id].cover_small + '"> ' + memory.knownDATA.albumIDs[id].title)
+									.attr('class', 'filter-album')
+									.attr('id', 'album-' + id);
+								$('.album-options').remove();
+								break;
+						}
+						
+						/* add a little green blink to it */
+						$(tmp_d).css('background-color', 'rgb(76 175 80 / 0%)');
+						$(tmp_d).animate({
+							backgroundColor: "#4caf50ad"
+						}, 300 ).animate({
+							backgroundColor: "#4caf5000"
+						}, 600 );
+						
+						$(tmp_d).append('<button type="button" onclick="$(this).parent().fadeOut(300, function() { $(this).remove(); });">X</button>');
+						$('.' + type + '-container .filter-container').html(tmp_d);
+					} else {
+						$('.' + type + '-options').remove();
+						/* already added, flash icon */
+						$('.' + type + '-' + id).animate({
+							backgroundColor: "#4caf50ad"
+						}, 300 ).animate({
+							backgroundColor: "#4caf5000"
+						}, 600 );
+					}
+				},
+				
+				reset : function(e) {
+				
+				}
+			},
+			
+			stats : {
+				createCharts : function(data) {
+					let container = $('.stats-container');
+				
+					$.each(['apiLatency', 'songUploads'], function(index, value) {
+						container.append('<canvas id="stats-' + value + '"></canvas>');
+						
+						/* timestamp to text */
+						let dateObj = new Date(data.lastCalculated);
+						let dateStr = dateObj.toUTCString();
+						
+						let myChart = $('#stats-' + value);
+						const cfg = {
+							type: 'line',
+							data: {
+								datasets: [{
+									label: value,
+									data: [{x: dateStr, y: data[value]}],
+									borderColor: 'rgb(75, 192, 192)',
+									pointRadius: 8,
+									pointHoverRadius: 10
+								}]
+							},
+							options: {
+								plugins: {
+									legend: {
+										display: true,
+										position: 'right',
+										labels: {
+											color: 'rgb(255, 99, 132)',
+											font: {
+												size: 28
+											}
+										}
+									},
+									streaming: {
+										duration: 120000
+									},
+									colors: {
+										forceOverride: true
+									}
+								},
+								scales: {
+									x: {
+										type: 'realtime',
+										realtime: {
+											delay: 2000,
+											frameRate: 30
+										}
+									}
+								}
+							}
+						}
+						
+						gui.activeCharts.push(new Chart(myChart, cfg));
+					});
+				},
+				
+				updateCharts : function(data) {
+					for(let i = 0; i < gui.activeCharts.length; i++) {
+						/* timestamp to text */
+						let dateObj = new Date(data.lastCalculated);
+						let dateStr = dateObj.toUTCString();
+						
+						gui.activeCharts[i].data.datasets[0].data.push({
+							x: dateObj,
+							y: data[gui.activeCharts[i].data.datasets[0].label]
+						});
+						gui.activeCharts[i].update('quiet');
+					};
+				}
+			},
+			
+			alert : function(data) {
+				/* create initials */
+				var tmp_d_container = document.createElement('div');
+				$(tmp_d_container).addClass('alert-container');
+				var tmp_d = document.createElement('div');
+				$(tmp_d).addClass('alert');
+				/* apply type */
+				if(data.success == 'fatal-error') { 
+					$(tmp_d).addClass('alert-error');
+					gui.audio('alert-fatal');
+				}
+				if(data.success == false) {
+					$(tmp_d).addClass('alert-warning');
+					gui.audio('alert-warning');
+				}
+				if(data.success == 'notification') {
+					$(tmp_d).addClass('alert-dark');
+					gui.audio('alert-dark');
+				}
+				if(data.success == true) {
+					$(tmp_d).addClass('alert-success');
+					gui.audio('alert-success');
+				}
+				
+				/* include message */
+				tmp_d.innerHTML = '<span><i class="fa-solid fa-circle-exclamation fa-2xl"></i></span>';
+				tmp_d.innerHTML += '<p>' + data.msg + '</p>';
+				/* apply to list */
+				$(tmp_d_container).append(tmp_d);
+				$('.alerts').append(tmp_d_container);
+				$(tmp_d_container).slideDown("fast").delay(2000).fadeOut("slow", function() {
+					$(this).remove();
+				});	
+			},
+			
+			audio : function(type) {
+				var audio = new Audio('/assets/' + type + '.mp3');
+				audio.play();
+			},
+			
+			actionList : function(data) {
+				/* types */
+				var connection = [
+					'login',
+					'logout'
+				];
+				var errors = [
+					'failed-request'
+				];
+				var neutral = [
+					'file-request',
+					'file-delivery'
+				];
+				var positive = [
+					'add-request',
+					'finished-request'
+				];
+				/* create initials */
+				var tmp_d = document.createElement('div');
+				/* grab userInfo */
+				var tmp_userinfo = gui.userInfo(data.uuid);
+				if(tmp_userinfo != null) {
+					tmp_userinfo = '<img src="https://picture-service.secondlife.com/' + memory.knownDATA['UUIDs'][data.uuid].userpic + '/256x192.jpg" /> ' + memory.knownDATA['UUIDs'][data.uuid].username;
+				} else {
+					tmp_userinfo = '<span id="' + data.uuid + '"><i class="fa-solid fa-spinner fa-2xl"></i></span>';
+				}
+				/* handle type */
+				if($.inArray(data.action, connection) !== -1) {
+					$(tmp_d).addClass('connection')
+						.append('<i class="fa-solid fa-signal fa-2xl"></i>');
+					if(data.action == 'login') { $(tmp_d).append(tmp_userinfo + ' logged in.'); }
+					if(data.action == 'logout') { $(tmp_d).append(tmp_userinfo + ' logged out.'); }
+				}
+				if($.inArray(data.action, errors) !== -1) {
+					$(tmp_d).addClass('error')
+						.append(tmp_userinfo + '\'s upload could not be finished. <div class="main-child yt-title">' + data.title + '</div><i class="fa-regular fa-face-sad-cry fa-2xl"></i>');
+				}				
+				if($.inArray(data.action, neutral) !== -1) { 
+					$(tmp_d).addClass('neutral');
+					if(data.action == 'file-request') { 
+						$(tmp_d).append(tmp_userinfo + ' requested file, <div class="main-child yt-title">' + data.title + '</div>')
+						.append('<i class="fa-solid fa-cloud-sun fa-2xl"></i>');
+					}
+					if(data.action == 'file-delivery') {
+						$(tmp_d).append(tmp_userinfo + ' received file, <div class="main-child yt-title">' + data.title + '</div>')
+						.append('<i class="fa-solid fa-cloud-arrow-down fa-2xl"></i>');
+					}
+				}
+				if($.inArray(data.action, positive) !== -1) {
+					$(tmp_d).addClass('positive')
+					if(data.action == 'add-request') { $(tmp_d).append(tmp_userinfo + ' added to queue, <div class="main-child yt-title">' + data.title + '</div><i class="fa-solid fa-file-import fa-2xl"></i>'); }
+					if(data.action == 'finished-request') { 
+						$(tmp_d).append(tmp_userinfo + ' finished uploading: <div class="main-child yt-title">' + data.title + '</div><i class="fa-solid fa-cloud-arrow-up fa-2xl"></i>');
+					}
+				}
+				
+				/* remove finished uploads */
+				if(data.action == 'finished-request' || data.action == 'failed-request') {
+					if($('#upload-' + data.uuid) !== null) {
+						$('#upload-' + data.uuid).remove();
+					}
+				}
+				
+				
+				$(tmp_d).addClass('main-child');
+				/* append to list above current upload if present */
+				if($('.currentUpload').length !== 0) {
+					$(tmp_d).insertBefore($('.currentUpload')[0]);
+				} else {
+					$('.actionList').append(tmp_d);
+				}
+				
+				/* remove top if too many */
+				var childCount = $('.actionList').children('div').length;
+				if(childCount > 12) {
+					$('.actionList div:lt(' + (childCount - 12) +')').fadeOut('slow', function() { $(this).remove(); });
+				}
+				
+				/* play a sound */
+				gui.audio('msg');
+			},
+			
+			uploadStatus : async function(data) {		
+				/* validate if exists */
+				if($('.currentUpload#upload-' + data.owner).length == 0) {
+					/* grab userInfo */
+					var tmp_userinfo = gui.userInfo(data.owner);
+					if(tmp_userinfo != null) {
+						tmp_userinfo = '<img src="https://picture-service.secondlife.com/' + memory.knownDATA['UUIDs'][data.owner].userpic + '/256x192.jpg" /> ' + memory.knownDATA['UUIDs'][data.owner].username;
+					} else {
+						tmp_userinfo = '<span id="' + data.owner + '"><i class="fa-solid fa-spinner fa-2xl"></i></span>';
+					}
+				
+					/* create it */
+					var tmp_d = document.createElement('div');
+					$(tmp_d).addClass('currentUpload')
+						.addClass('main-child')
+						.attr('id', 'upload-' + data.owner);
+						
+					/* create div for userinfo */					
+					var tmp_d_usrinfo = document.createElement('div');
+					$(tmp_d_usrinfo).addClass('main-child')
+						.addClass('upload-info-user')
+						.append(tmp_userinfo + ' is uploading:');
+					$(tmp_d).append(tmp_d_usrinfo);
+						
+					/* create overlaying text */
+					var tmp_d_info = document.createElement('div');
+					$(tmp_d_info).addClass('upload-info')
+						.append(
+						'<div class="main-child upload-info-container">'
+							+ '<div class="main-child yt-title">' + data.title + '</div>'
+							+ '<div class="main-child upload-percent">' + data.percent + '</div>'
+							+ ' <div class="main-child upload-status">' + data.action + '</div>'
+						+ '</div>')
+						.addClass('main-child');
+					$(tmp_d).append(tmp_d_info);
+					
+					/* create processbar */
+					var tmp_span = document.createElement('span');
+					$(tmp_span).addClass('process-bar')
+						.addClass('main-child');
+					$(tmp_d).append(tmp_span);
+					
+					/* add icon */
+					$(tmp_d).append('<i class="fa-solid fa-cloud-arrow-up fa-2xl"></i>');
+					
+					/* add to action list */
+					$('.actionList').append(tmp_d);
+				}
+				
+				/* update upload statuses */
+				$('.currentUpload#upload-' + data.owner + ' span').css("width", data.percent);
+				$('.currentUpload#upload-' + data.owner + ' .upload-info-user').html(tmp_userinfo);
+				$('.currentUpload#upload-' + data.owner + ' .yt-title').html(data.title);
+				$('.currentUpload#upload-' + data.owner + ' .upload-percent').html(data.percent);
+				$('.currentUpload#upload-' + data.owner + ' .upload-status').html(data.action);
+			},
+			
+			playSong : function(data) {
+			/* if id is set, toggle play button matching id */
+				if(id != null) {
+					if($('#' + id ).hasClass('active')) {
+						$('#' + id ).removeClass('active')
+							.html('<i class="fa-regular fa-circle-play fa-2xl"></i>');
+						gui.previewAudio.pause();
+						gui.previewAudio.currentTime = 0;
+					} else {
+						/* normalize other preview buttons */
+						$('.filelist-additional-info-preview').each(function () {
+							if($(this).hasClass('active')) {
+								$(this).removeClass('active')
+									.html('<i class="fa-regular fa-circle-play fa-2xl"></i>');
+							}
+						});
+						
+						/* activate this one */
+						$('#' + id ).addClass('active')
+							.html('<i class="fa-solid fa-circle-pause fa-2xl"></i>');
+						gui.previewAudio.src = url;
+						gui.previewAudio.play();
+					}
+				} else {
+					/* no id, */
+				}
+			},
+			
+			fileinfo : function(key) {
+				if($('#info-' + key).hasClass('hidden')) {
+					/* hide previously shown, if any */
+					$('.filelist-additional-info').each(function () {
+						if($(this).hasClass('shown')) {
+							$(this).removeClass('shown')
+								.addClass('hidden');
+						}
+					});
+					
+					$('#info-' + key).removeClass('hidden')
+						.addClass('shown');
+				} else {
+					$('#info-' + key).removeClass('shown')
+						.addClass('hidden');
+				}
+			},
+			
+			userInfo : function(uuid) {
+				/* verify it's a known user */
+				if(memory.knownDATA['UUIDs'][uuid] != undefined) {
+					/* verify data is loaded */
+					if(memory.knownDATA['UUIDs'][uuid].username != undefined) {
+						return memory.knownDATA['UUIDs'][uuid];
+					} else {
+						/* has it been >10 seconds since we last requested a lookup? */
+						if(Date.now() - memory.knownDATA['UUIDs'][uuid].seen > 10000) {
+						console.log('it has been ' + (Date.now() - memory.knownDATA['UUIDs'][uuid].seen) + ' seconds since last check, trying to look up ' + uuid + ' again');
+							socket.emit('api', {
+								app: 'lookup',
+								type: 'user',
+								uuid: uuid
+							});
+						}
+						
+						return null;
+					}
+				} else {
+					console.log('new uuid: ' + uuid);
+					/* temporarily add dummy data */
+					memory.knownDATA['UUIDs'][uuid] = {
+						'seen': Date.now()				
+					}
+				
+					socket.emit('api', {
+						app: 'lookup',
+						type: 'user',
+						uuid: uuid
+					});
+					
+					return null;
+				}
+			},
+			
+			songInfo : function(deezer_id) {
+				/* verify it's a known song */
+				if(memory.knownDATA['songIDs'][deezer_id] != undefined) {
+				
+				} else {
+					socket.emit('api', {
+						app: 'lookup',
+						type: 'song_by_id',
+						search: deezer_id
+					});
+					return '<span id="song-' + deezer_id + '"><i class="fa-solid fa-spinner fa-2xl"></i></span>';
+				}
+			},
+			
+			artistInfo : function(deezer_id) {
+				/* verify it's a known song */
+				if(memory.knownDATA['artistIDs'][deezer_id] != undefined) {
+					return '<img src="' + memory.knownDATA['artistIDs'][deezer_id].picture_small + '" />' + memory.knownDATA['artistIDs'][deezer_id].name
+				} else {
+					socket.emit('api', {
+						app: 'lookup',
+						type: 'artist_by_id',
+						search: deezer_id
+					});
+					return '<span id="artist-' + deezer_id + '"><i class="fa-solid fa-spinner fa-2xl"></i></span>';
+				}
+			},
+			
+			albumInfo : function(deezer_id) {
+				/* verify it's a known song */
+				if(memory.knownDATA['albumIDs'][deezer_id] != undefined) {
+					return '<img src="' + memory.knownDATA['albumIDs'][deezer_id].cover_small + '" />' + memory.knownDATA['albumIDs'][deezer_id].title
+				} else {
+					socket.emit('api', {
+						app: 'lookup',
+						type: 'album_by_id',
+						search: deezer_id
+					});
+					return '<span id="album-' + deezer_id + '"><i class="fa-solid fa-spinner fa-2xl"></i></span>';
+				}
+			},
+			
+			clearField : function() {
+				let tmp_str = $('.gui .main #form :input').val();
+				if(tmp_str.length > 0) {
+					$('.gui #form :input').val(tmp_str.substr(0, tmp_str.length - 1));
+					setTimeout(function() {
+						gui.clearField();
+					}, 50);
+				} else {
+					$('.gui .main #form :input').prop("disabled", false);
+				}
+			},
+			
+			toFormalDate : function(date) {
+				var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+				var current_date = new Date(date);
+				month_value = current_date.getMonth();
+				day_value = current_date.getDate();
+				year_value = current_date.getFullYear();
+
+				return (day_value + " " + months[month_value] + " " + year_value);
+			},
+			
+			toFormalTime : function(totalSeconds) {
+				let minutes = Math.floor(totalSeconds / 60);
+				let seconds = totalSeconds % 60;
+				return 	minutes + ":" + seconds;
+			}
+		}
+	</script>
+</head>
+<body>
+	<div class="background">
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+	</div>
+	<div class="alerts"><span></span></div>
+	<div class="gui"></div>
+</body>
+</html>
