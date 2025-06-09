@@ -1,0 +1,252 @@
+<html>
+	<head>
+		<script src="https://cdn.jsdelivr.net/gh/foobar404/wave.js/dist/bundle.js"></script>
+	</head>
+	<body>
+		<style>
+			#container {
+				position: absolute;
+				top: 0;
+				left: 0;
+				background: #000;
+				width: 100%;
+				height: 100%;
+			}
+			
+			#canvas1 {
+			}
+			
+			#audio1 {
+				width: 50%;
+				margin: 50px auto;
+				display: block;
+			}
+		</style>
+		
+		<div id="container">
+			<button class="init" onclick="player.init()">Init!</button>
+			<button class="loadFile" onclick="player.loadAllFiles(player.urlList)">Load files!</button>
+			<canvas id="canvas1"></canvas>
+			<audio id="audio1" controls></audio>
+		</div>
+	</body>
+</html>
+		
+<script>
+var player = {
+	// (A) Globals
+	urlCDN : 'http://asset-cdn.glb.agni.lindenlab.com/?sound_id=',
+	urlList : [
+		'f9a2cfdd-0913-fe16-fbec-f1413fdeb39b',
+		'81e2c064-0797-ef67-410d-86e57a27cc94',
+		'5c5d9152-2123-37e6-f7a5-dc70ce40e8d6',
+		'f1b8f748-0f88-f140-72f0-79b645af47bf',
+		'a05bf084-d5d5-0de9-362a-10ab0d53e59b',
+		'ef25e996-529e-234d-67d6-056000c87d5e',
+		'99adcc28-8853-819d-fc88-7511abd1b0b6',
+		'9aa7b420-7a9b-419b-f588-76c9b775e79a',
+		'fe05eb14-5051-900f-6e7e-5625c1b1ee6d',
+		'1e4f350d-f97d-2004-1324-5ed1ab75e85e'
+	],
+	context : null,
+	blobURL : null,
+	audioSource : null,
+	audioPlayer : document.getElementById('audio1'),
+	analyser : null,
+	container : document.getElementById('container'),
+	canvas : document.getElementById('canvas1'),
+	ctx : null,
+	dataArray : null,
+	bufferList : [],
+	loadButton : document.querySelector('.loadFile'),
+	playButton : document.querySelector('.playFile'),
+	
+	// (B) Functions
+	init : function() {
+		player.context = new AudioContext();
+		player.analyser = player.context.createAnalyser();
+		player.analyser.fftSize = 64;
+		player.ctx = player.canvas.getContext('2d');
+		player.ctx.fillStyle = 'white';
+		
+	},
+	
+	play : function (audioBuffer) {
+		/* process audio */
+		var offlineAudioCtx = new OfflineAudioContext({
+			numberOfChannels: 1,
+			length: 44100 * audioBuffer.duration,
+			sampleRate: 44100,
+		});
+				
+		player.audioSource = offlineAudioCtx.createBufferSource();
+		player.audioSource.buffer = audioBuffer;
+						
+		var compressor = offlineAudioCtx.createDynamicsCompressor();
+		player.audioSource.connect(compressor);
+		compressor.connect(offlineAudioCtx.destination);
+		
+		player.audioSource.start();
+
+		offlineAudioCtx.startRendering().then(function(renderedBuffer) {
+			if(player.blobURL != null) { URL.revokeObjectURL(player.blobURL); }
+			
+			player.blobURL = URL.createObjectURL(bufferToWave(renderedBuffer, offlineAudioCtx.length));
+			player.audioPlayer.src = player.blobURL;
+			console.log(player.blobURL);
+		});
+	},
+	
+	
+	
+	animate : function() {
+		player.ctx.clearRect(0, 0, player.canvas.width, player.canvas.height);
+		player.analyser.getByteFrequencyData(player.dataArray);
+		
+		let x_pos = 0;
+		for(let i = 0; i < player.bufferList.length; i++) {
+			let barHeight = player.dataArray[i];
+			player.ctx.fillRect(0, player.canvas.height - barHeight, 2, barHeight);
+			x_pos += 2;
+		}
+		
+		requestAnimationFrame(player.animate);
+	},
+	
+	concatBufferList : function (buflist, len) {
+		let tmp = new Uint8Array(len);
+		let pos = 0;
+		for (let i = 0; i < buflist.length; i++) {
+			tmp.set(new Uint8Array(buflist[i]), pos);
+			pos += buflist[i].byteLength;
+		}
+		return tmp;
+	},
+	
+	loadAllFiles : function (list) {
+		let fileCount = 0;
+		let fileSize = 0;
+		
+		for (let i = 0; i < list.length; i++) {
+			player.loadFileXML(player.urlCDN + list[i]).then(e => {
+				player.bufferList[i] = e.buf;
+				fileSize += e.size;
+				fileCount++;
+				
+				if (fileCount == player.bufferList.length) {
+					let b = player.concatBufferList(player.bufferList, fileSize);
+					player.context.decodeAudioData(b.buffer).then(audioBuffer => {
+						player.play(audioBuffer);
+					});
+				}
+			});
+		}
+	},
+	
+	loadFileXML : function(url) {
+		return new Promise((resolve, reject) => {
+			const req = new XMLHttpRequest();
+			
+			req.open('GET', url, true);
+			req.responseType = 'arraybuffer';
+			req.onload = () => {
+				if(req.status === 200) {
+					const fileSize = req.response.byteLength;
+					resolve({
+						buf: req.response,
+						size: fileSize
+					});
+				} else {
+					reject(`Error loading '${url}' (${req.status})`);
+				}
+			}
+			
+			req.onerror = err => {
+				reject(err);
+			};
+			
+			req.send();
+		});
+	}
+}
+
+function bufferToWave(abuffer, len) {
+	var numOfChan = abuffer.numberOfChannels,
+	length = len * numOfChan * 2 + 44,
+	buffer = new ArrayBuffer(length),
+	view = new DataView(buffer),
+	channels = [], i, sample,
+	offset = 0,
+	pos = 0;
+
+	// write WAVE header
+	setUint32(0x46464952);                         // "RIFF"
+	setUint32(length - 8);                         // file length - 8
+	setUint32(0x45564157);                         // "WAVE"
+
+	setUint32(0x20746d66);                         // "fmt " chunk
+	setUint32(16);                                 // length = 16
+	setUint16(1);                                  // PCM (uncompressed)
+	setUint16(numOfChan);
+	setUint32(abuffer.sampleRate);
+	setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+	setUint16(numOfChan * 2);                      // block-align
+	setUint16(16);                                 // 16-bit (hardcoded in this demo)
+
+	setUint32(0x61746164);                         // "data" - chunk
+	setUint32(length - pos - 4);                   // chunk length
+
+	// write interleaved data
+	for(i = 0; i < abuffer.numberOfChannels; i++)
+		channels.push(abuffer.getChannelData(i));
+
+	while(pos < length) {
+		for(i = 0; i < numOfChan; i++) {             // interleave channels
+			sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+			sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit signed int
+			view.setInt16(pos, sample, true);          // write 16-bit sample
+			pos += 2;
+		}
+		offset++                                     // next source sample
+	}
+
+	// create Blob
+	return new Blob([buffer], {type: "audio/wav"});
+
+	function setUint16(data) {
+		view.setUint16(pos, data, true);
+		pos += 2;
+	}
+
+	function setUint32(data) {
+		view.setUint32(pos, data, true);
+		pos += 4;
+	}
+}
+
+let audioElement = document.querySelector("#audio1");
+let canvasElement = document.querySelector("#canvas1");
+let wave = new Wave(audioElement, canvasElement);
+
+// Simple example: add an animation
+wave.addAnimation(new wave.animations.Wave());
+
+// Intermediate example: add an animation with options
+wave.addAnimation(new wave.animations.Wave({
+    lineWidth: 10,
+    lineColor: "red",
+    count: 20
+}));
+
+// Expert example: add multiple animations with options
+wave.addAnimation(new wave.animations.Square({
+    count: 50,
+    diamater: 300
+}));
+
+wave.addAnimation(new wave.animations.Glob({
+    fillColor: {gradient: ["red","blue","green"], rotate: 45},
+    lineWidth: 10,
+    lineColor: "#fff"
+}));
+</script>
