@@ -2,7 +2,7 @@
 
 Initially developed in August 2023, after the shutdown of the Mewsic Player.
 It ran for approx. 18 months providing people in Second Life the ability to upload music for free.
-Approx. 270'000 songs (~50mill files) were upload throughout it's lifespan.
+Approx. 270'000 songs (~5mill files) were upload throughout it's lifespan.
 
 # Known bugs:
 Will handle ~1500 songs per day until a certain bug is hit.
